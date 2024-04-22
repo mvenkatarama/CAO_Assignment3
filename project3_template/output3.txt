@@ -1,0 +1,27 @@
+------ Registers ------
+[R0]:0 [R1]:105 [R2]:40 [R3]:65 [R4]:116 [R5]:4 [R6]:60 [R7]:0 [R8]:1 [R9]:72 [R10]:72 [R11]:72 [R12]:0 [R13]:0 [R14]:0 [R15]:0 [R16]:0 [R17]:0 [R18]:0 [R19]:0 [R20]:8400 [R21]:7898 [R22]:16800 [R23]:0 [R24]:0 [R25]:0 [R26]:0 [R27]:0 [R28]:0 [R29]:0 [R30]:35 [R31]:0 [R32]:0 [R33]:0 [R34]:0 [R35]:0 [R36]:0 [R37]:0 [R38]:0 [R39]:0 [R40]:0 [R41]:40 [R42]:0 [R43]:1 [R44]:75 [R45]:3500 [R46]:2574 [R47]:5500 [R48]:6666 [R49]:1 [R50]:240 [R51]:1120 [R52]:0 [R53]:1 [R54]:2 [R55]:0 [R56]:2 [R57]:-2 [R58]:0 [R59]:0 [R60]:1044 [R61]:0 [R62]:1044 [R63]:1044 
+
+
+------ Results ------
+Number of Set instructions: 32
+Number of Add instructions: 13
+Number of Sub instructions: 10
+Number of Mul instructions: 8
+Number of Div instructions: 9
+Number of LD instructions: 1
+Number of SD instructions: 1
+Number of BEZ instructions: 1
+Number of BGTZ instructions: 2
+Number of BLTZ instructions: 1
+Number of RET instructions: 1
+Number of 3Bytes instructions: 2
+Number of 4Bytes instructions: 58
+Number of 5Bytes instructions: 15
+Number of 6Bytes instructions: 4
+Total Number of instructions: 79
+
+Stalled cycles due to data hazard: 0 
+Stalled cycles due to control hazard: 0 
+Total execution cycles: 0
+IPC: -nan
+
