@@ -6,12 +6,35 @@
 
 #include "cpu.h"
 
+/*
+Logic to simulate pipeline stats:
+1) Read an instraction
+2) Read next 4 instructions
+    2.1) if 1st inst has hazard, add 4 stalling cycle to data-hazards
+    2.2) if 2nd inst has hazard, add 3 stalling cycle to data-hazards
+    2.3) if 3rd inst has hazard, add 2 stalling cycle to data-hazards
+    2.4) if 4th inst has hazard, add 1 stalling cycle to data-hazards
+3) if control hazard in current inst, then add 4 cycles to control hazards 
+
+*/
 void print_registers(int* registers);
 void print_statistics(int stats[]);
 
 CPU_t cpu;
 
 int data_hazard_count = 0, control_hazard_count = 0, total_cycle_count = 0, total_instruction_count = 0;
+
+void setCPUIntsructionAtIndex(int index, int opcode, int rs1, int rs2, int rd, int imm1, int imm2){
+    cpu.instructions[index].opcode = opcode;
+    cpu.instructions[index].rs1 = rs1;
+    cpu.instructions[index].rs2 = rs2;
+    cpu.instructions[index].rd = rd;
+    cpu.instructions[index].imm1 = imm1;
+    cpu.instructions[index].imm2 = imm2;
+
+}
+
+int instructionCount = 0;
 
 int readFile(const char *filePath) {
     FILE *binaryFile;
@@ -25,9 +48,10 @@ int readFile(const char *filePath) {
         return 1;
     }
 
-    int iteration = 50;
-    unsigned int rx=0, ry=0, rz=0, imm_value1=0, imm_value2=0, first_byte=0, second_byte=0, temp = 0;
+    unsigned int rx=0, ry=0, rz=0, imm_value1=0, imm_value2=0, first_byte=0, second_byte=0, temp = 0, opcode = 0;
     int flag = 1; 
+    
+    
     // printf("\nCheckpoint 1\n");
     while (fread(instructionBuffer, 1, 1, binaryFile) == 1 && flag==1) {
         // printf("\nRead Instruction %d: 0x%02X", i, instructionBuffer[0]);
@@ -40,6 +64,8 @@ int readFile(const char *filePath) {
         
         // set - 4B
         case 0x01:
+            opcode = instructionBuffer[0];
+
             fread(instructionBuffer, 1, 1, binaryFile);
             rx = instructionBuffer[0];
 
@@ -54,10 +80,14 @@ int readFile(const char *filePath) {
             cpu.stats[0]+=1;
             cpu.stats[12]+=1;
 
+            setCPUIntsructionAtIndex(instructionCount, opcode, rx, -1, rx, imm_value1, -1);
+
             break;
 
         // add 4B
         case 0x10:
+            opcode = instructionBuffer[0];
+
             // printf("\n%d - Add 1", cpu.stats[16]);
             fread(instructionBuffer, 1, 1, binaryFile);
             rx = instructionBuffer[0];
@@ -70,10 +100,14 @@ int readFile(const char *filePath) {
             cpu.stats[1]+=1;
             cpu.stats[12]+=1;
 
+            setCPUIntsructionAtIndex(instructionCount, opcode, ry, rz, rx, -1, -1);
+
             break;
 
         // add 5B
         case 0x50:
+            opcode = instructionBuffer[0];
+
             // printf("\n%d - Add 2", cpu.stats[16]);
             fread(instructionBuffer, 1, 1, binaryFile);
             rx = instructionBuffer[0];
@@ -91,10 +125,14 @@ int readFile(const char *filePath) {
             cpu.stats[1]+=1;
             cpu.stats[13]+=1;
 
+            setCPUIntsructionAtIndex(instructionCount, opcode, ry, -1, rx, imm_value1, -1);
+
             break;
 
         // add 6B
         case 0x90:
+            opcode = instructionBuffer[0];
+            
             // printf("\n%d - Add 3",cpu.stats[16]);
             fread(instructionBuffer, 1, 1, binaryFile);
             rx = instructionBuffer[0];
@@ -117,10 +155,14 @@ int readFile(const char *filePath) {
             cpu.stats[1]+=1;
             cpu.stats[14]+=1;
 
+            setCPUIntsructionAtIndex(instructionCount, opcode, -1, -1, rx, imm_value1, imm_value2);
+
             break;
 
         // sub 4B
         case 0x14:
+            opcode = instructionBuffer[0];
+            
             // printf("\n%d - Sub 1", cpu.stats[16]);
             fread(instructionBuffer, 1, 1, binaryFile);
             rx = instructionBuffer[0];
@@ -131,10 +173,15 @@ int readFile(const char *filePath) {
             cpu.registers[rx] = cpu.registers[ry] - cpu.registers[rz];
             cpu.stats[2]+=1;
             cpu.stats[12]+=1;
+
+            setCPUIntsructionAtIndex(instructionCount, opcode, ry, rz, rx, -1, -1);
+
             break;
 
         // sub 5B
         case 0x54:
+            opcode = instructionBuffer[0];
+            
             // printf("\n%d - Sub 2",cpu.stats[16]);
             fread(instructionBuffer, 1, 1, binaryFile);
             rx = instructionBuffer[0];
@@ -151,10 +198,15 @@ int readFile(const char *filePath) {
             cpu.registers[rx] = cpu.registers[ry] - imm_value1;
             cpu.stats[2]+=1;
             cpu.stats[13]+=1;
+
+            setCPUIntsructionAtIndex(instructionCount, opcode, ry, -1, rx, imm_value1, -1);
+
             break;
 
         // sub 6B
         case 0x94:
+            opcode = instructionBuffer[0];
+            
             // printf("\n%d - Sub 3", cpu.stats[16]);
             fread(instructionBuffer, 1, 1, binaryFile);
             rx = instructionBuffer[0];
@@ -177,10 +229,14 @@ int readFile(const char *filePath) {
             cpu.stats[2]+=1;
             cpu.stats[14]+=1;
 
+            setCPUIntsructionAtIndex(instructionCount, opcode, -1, -1, rx, imm_value1, imm_value2);
+
             break;
 
         // mul 4B
         case 0x18:
+            opcode = instructionBuffer[0];
+            
             // printf("\n%d - Mul 1",cpu.stats[16]);
             fread(instructionBuffer, 1, 1, binaryFile);
             rx = instructionBuffer[0];
@@ -193,10 +249,14 @@ int readFile(const char *filePath) {
             cpu.stats[3]+=1;
             cpu.stats[12]+=1;
 
+            setCPUIntsructionAtIndex(instructionCount, opcode, ry, rz, rx, -1, -1);
+
             break;
 
         // mul 5B
         case 0x58:
+            opcode = instructionBuffer[0];
+            
             // printf("\n%d - Mul 2", cpu.stats[16]);
             fread(instructionBuffer, 1, 1, binaryFile);
             rx = instructionBuffer[0];
@@ -215,10 +275,14 @@ int readFile(const char *filePath) {
             cpu.stats[3]+=1;
             cpu.stats[13]+=1;
 
+            setCPUIntsructionAtIndex(instructionCount, opcode, ry, -1, rx, imm_value1, -1);
+
             break;
         
         // mul 6B
         case 0x98:
+            opcode = instructionBuffer[0];
+           
             // printf("\n%d - Mul 3", cpu.stats[16]);
             fread(instructionBuffer, 1, 1, binaryFile);
             rx = instructionBuffer[0];
@@ -242,10 +306,14 @@ int readFile(const char *filePath) {
             cpu.stats[3]+=1;
             cpu.stats[14]+=1;
 
+            setCPUIntsructionAtIndex(instructionCount, opcode, -1, -1, rx, imm_value1, imm_value2);
+
             break;
 
         // div 4B
         case 0x1C:
+            opcode = instructionBuffer[0];
+            
             // printf("\n%d - Div 1", cpu.stats[16]);
             fread(instructionBuffer, 1, 1, binaryFile);
             rx = instructionBuffer[0];
@@ -259,10 +327,14 @@ int readFile(const char *filePath) {
             cpu.stats[4]+=1;
             cpu.stats[12]+=1;
 
+            setCPUIntsructionAtIndex(instructionCount, opcode, ry, rz, rx, -1, -1);
+
             break;
 
         // div 5B
         case 0x5C:
+            opcode = instructionBuffer[0];
+            
             // printf("\n%d - Div 2", cpu.stats[16]);
             fread(instructionBuffer, 1, 1, binaryFile);
             rx = instructionBuffer[0];
@@ -281,10 +353,14 @@ int readFile(const char *filePath) {
             cpu.stats[4]+=1;
             cpu.stats[13]+=1;
 
+            setCPUIntsructionAtIndex(instructionCount, opcode, ry, -1, rx, imm_value1, -1);
+
             break;
         
         // div 6B
         case 0x9C:
+            opcode = instructionBuffer[0];
+            
             // printf("\n%d - Div 3", cpu.stats[16]);
             fread(instructionBuffer, 1, 1, binaryFile);
             rx = instructionBuffer[0];
@@ -307,10 +383,14 @@ int readFile(const char *filePath) {
             cpu.stats[4]+=1;
             cpu.stats[14]+=1;
 
+            setCPUIntsructionAtIndex(instructionCount, opcode, -1, -1, rx, imm_value1, imm_value2);
+
             break;
 
         // BEZ - 4B
         case 0x04:
+            opcode = instructionBuffer[0];
+            
             fread(instructionBuffer, 1, 1, binaryFile);
             rx = instructionBuffer[0];
 
@@ -332,10 +412,14 @@ int readFile(const char *filePath) {
             cpu.stats[7]+=1;
             cpu.stats[12]+=1;
 
+            setCPUIntsructionAtIndex(instructionCount, opcode, rx, -1, rx, imm_value1, -1);
+
             break;
         
         // BGTZ - 4B
         case 0x05:
+            opcode = instructionBuffer[0];
+            
             fread(instructionBuffer, 1, 1, binaryFile);
             rx = instructionBuffer[0];
 
@@ -357,10 +441,14 @@ int readFile(const char *filePath) {
             cpu.stats[8]+=1;
             cpu.stats[12]+=1;
 
+            setCPUIntsructionAtIndex(instructionCount, opcode, rx, -1, rx, imm_value1, -1);
+
             break;
 
         // BLTZ - 4B
         case 0x06:
+            opcode = instructionBuffer[0];
+            
             fread(instructionBuffer, 1, 1, binaryFile);
             rx = instructionBuffer[0];
 
@@ -383,10 +471,14 @@ int readFile(const char *filePath) {
             cpu.stats[9]+=1;
             cpu.stats[12]+=1;
 
+            setCPUIntsructionAtIndex(instructionCount, opcode, rx, -1, rx, imm_value1, -1);
+
             break;
 
         // LD - 3B
         case 0xC8:
+            opcode = instructionBuffer[0];
+            
             fread(instructionBuffer, 1, 1, binaryFile);
             rx = instructionBuffer[0];
             fread(instructionBuffer, 1, 1, binaryFile);
@@ -397,11 +489,15 @@ int readFile(const char *filePath) {
 
             cpu.stats[5]+=1;
             cpu.stats[11]+=1;
+
+            setCPUIntsructionAtIndex(instructionCount, opcode, rx, ry, rx, -1, -1);
         
             break;
 
         // SD - 3B
         case 0xCC:
+            opcode = instructionBuffer[0];
+            
             fread(instructionBuffer, 1, 1, binaryFile);
             rx = instructionBuffer[0];
             fread(instructionBuffer, 1, 1, binaryFile);
@@ -420,14 +516,20 @@ int readFile(const char *filePath) {
             cpu.stats[6]+=1;
             cpu.stats[11]+=1;
 
+            setCPUIntsructionAtIndex(instructionCount, opcode, rx, ry, rx, -1, -1);
+
             break;
 
 
         case 0x00:
+            opcode = instructionBuffer[0];
+            
             // printf(" - Ret");
             cpu.stats[10]+=1;
             cpu.stats[12]+=1;
             flag = 0;
+
+            setCPUIntsructionAtIndex(instructionCount, opcode, -1, -1, -1, -1, -1);
 
             break;
         
@@ -435,8 +537,10 @@ int readFile(const char *filePath) {
             // printf("\nInvalid @ %ld",ftell(binaryFile));
             break;
         }
+
+        instructionCount+=1;
         
-        iteration-=1;
+        // iteration-=1;
         // long pos = ftell(binaryFile);
         // printf(" POS : %ld\n", pos);
         // print_registers(cpu.registers);
@@ -496,6 +600,41 @@ void loadMemFileIntoArr(const char *filePath){
     return;
 }
 
+void printOpcodes(){
+    for(int i=0; i<100; i++){
+        printf("Opcode at %d is %d - dest:%d\n", i, cpu.instructions[i].opcode, cpu.instructions[i].rd);
+    }
+}
+
+void printPipeline(Instruction pipeline[]){
+    // printf("\n");
+    for(int i=0; i<8; i++){
+        printf("P[%d]:%d  ", i, pipeline[i].opcode);
+    }
+    printf("\n");
+}
+
+void countHazards(){
+
+    // [' IF:0', ' ID:1', ' RR:2', ' EX:3', ' BR:4', ' MEM1:5', ' MEM2:6', 'WR:7']
+    Instruction * pipeline = malloc(8 * sizeof(Instruction));
+    int count = 0;
+
+    while(count <= instructionCount){
+        printf("Iteration: %d\n", count);
+        printPipeline(pipeline);
+
+        for(int i=7; i>0; i--){
+            pipeline[i] = pipeline[i-1];
+        }
+        pipeline[0] = cpu.instructions[count];
+
+        printPipeline(pipeline);
+        count+=1;
+    }
+
+}
+
 int main(int argc, char const *argv[])
 {
 	// CPU_t cpu;
@@ -515,6 +654,9 @@ int main(int argc, char const *argv[])
         cpu.memory[i] = 0;
     }
 
+    // initilaize instructions array
+    cpu.instructions = malloc(1000 * sizeof(Instruction));
+
     // printf("%d\n", argc);
     // printf("%s\n", argv[0]);
     // printf("%s\n", argv[1]);
@@ -522,11 +664,13 @@ int main(int argc, char const *argv[])
     loadMemFileIntoArr(argv[1]);
 
     readFile(argv[1]);
+    // printOpcodes();
 
 	print_registers(cpu.registers);
 	print_statistics(cpu.stats);
 
     writeMemFile(argv[2]);
+    countHazards();
     // writeMemOutFile(argv[1], argv[2]);
 
 	// Step2: read bits from the text area of memory

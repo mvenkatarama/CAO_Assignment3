@@ -16,7 +16,7 @@
  */
 typedef struct {
     int length;    // length of the instruction
-    char opcode[4];    // opcode
+    int opcode;    // opcode
     int rd;    // destination register
     int rs1;    // source register 1
     int rs2;    // source register 2
@@ -36,9 +36,9 @@ typedef struct {
  */
 // typedef struct CPU
 // {
-    // registers
-    // stages (IF, Decode, Exe, Mem, WR, etc)
-    // other informations needed to define here
+//     registers
+//     stages (IF, Decode, Exe, Mem, WR, etc)
+//     other informations needed to define here
 // } CPU;
 
 /**
@@ -57,6 +57,8 @@ typedef struct CPU
 
     // char array memout
     char memout[MEM_SIZE];
+
+    Instruction* instructions;
 } CPU_t;
 
 
