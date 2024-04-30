@@ -24,6 +24,23 @@ CPU_t cpu;
 
 int data_hazard_count = 0, control_hazard_count = 0, total_cycle_count = 0, total_instruction_count = 0;
 
+Instruction initInstruction(){
+    Instruction instruction;
+    instruction.length = -1;
+    instruction.opcode = -1 ; 
+    instruction.rd = -1;
+    instruction.rs1 = -1;
+    instruction.rs2 = -1;
+    instruction.has_rd = -1;
+    instruction.has_rs1 = -1;
+    instruction.has_rs2 = -1;
+    instruction.imm1 = -1;
+    instruction.imm2 = -1;
+    instruction.has_imm1 = -1;
+    instruction.has_imm2 = -1;
+    return instruction;
+}
+
 void setCPUIntsructionAtIndex(int index, int opcode, int rs1, int rs2, int rd, int imm1, int imm2){
     cpu.instructions[index].opcode = opcode;
     cpu.instructions[index].rs1 = rs1;
@@ -80,7 +97,7 @@ int readFile(const char *filePath) {
             cpu.stats[0]+=1;
             cpu.stats[12]+=1;
 
-            setCPUIntsructionAtIndex(instructionCount, opcode, rx, -1, rx, imm_value1, -1);
+            setCPUIntsructionAtIndex(instructionCount, opcode, -1, -1, rx, imm_value1, -1);
 
             break;
 
@@ -490,7 +507,7 @@ int readFile(const char *filePath) {
             cpu.stats[5]+=1;
             cpu.stats[11]+=1;
 
-            setCPUIntsructionAtIndex(instructionCount, opcode, rx, ry, rx, -1, -1);
+            setCPUIntsructionAtIndex(instructionCount, opcode, ry, -1, rx, -1, -1);
         
             break;
 
@@ -516,7 +533,7 @@ int readFile(const char *filePath) {
             cpu.stats[6]+=1;
             cpu.stats[11]+=1;
 
-            setCPUIntsructionAtIndex(instructionCount, opcode, rx, ry, rx, -1, -1);
+            setCPUIntsructionAtIndex(instructionCount, opcode, ry, -1, rx, -1, -1);
 
             break;
 
@@ -550,6 +567,41 @@ int readFile(const char *filePath) {
     fclose(binaryFile);
 
     return 0;
+}
+
+char* getOpcodeInString(int opcode){
+    // printf("In getOpcodeInString %d", opcode);
+    if(opcode == -1 ){
+        return "NoOp";
+    }
+    if(opcode!=-1){
+        switch(opcode){
+            case 0x01: return "set";
+            case 0x10: return "add1";
+            case 0x50: return "add2";
+            case 0x90: return "add3";
+            case 0x14: return "sub1";
+            case 0x54: return "sub2";
+            case 0x94: return "sub3";
+            case 0x18: return "mul1";
+            case 0x58: return "mul2";
+            case 0x98: return "mul3";
+            case 0x1C: return "div1";
+            case 0x5C: return "div2";
+            case 0x9C: return "div3";
+            case 0x04: return "bez";
+            case 0x05: return "bgtz";
+            case 0x06: return "bltz";
+            case 0xC8: return "ld";
+            case 0xCC: return "sd";
+            case 0x00: return "ret";
+            default: {
+                printf("\nWeird Opcode : %d", opcode);
+                return "deafult";
+            }        
+        }
+    }
+
 }
 
 void writeMemFile(const char *filePath) {
@@ -608,32 +660,196 @@ void printOpcodes(){
 
 void printPipeline(Instruction pipeline[]){
     // printf("\n");
-    for(int i=0; i<8; i++){
-        printf("P[%d]:%d  ", i, pipeline[i].opcode);
+    for(int i=7; i>=0; i--){
+        printf("\nP[%d]: opcode : %s, R%d,R%d,R%d, imm1:%d, imm2:%d  ", i, getOpcodeInString(pipeline[i].opcode),pipeline[i].rd, pipeline[i].rs1,pipeline[i].rs2, pipeline[i].imm1, pipeline[i].imm2);
     }
     printf("\n");
 }
 
-void countHazards(){
+Instruction* handleHazards(Instruction * pipeline){
+    
+    // control hazards
+    Instruction instAtBR = pipeline[4];
+    bool isControlHazard = false;
+
+    printf("\nInst at BR: opcode:%d, rx:%d, rs1:%d, rs2:%d, imm1:%d, imm2:%d, control_hazard_count:%d \n", 
+    instAtBR.opcode, instAtBR.rd, instAtBR.rs1, instAtBR.rs2, instAtBR.imm1, instAtBR.imm2, control_hazard_count);
+
+    if(instAtBR.opcode == 0x04) { //BEZ
+        if(cpu.registers[instAtBR.rd]==0) {
+            control_hazard_count+=4;
+            isControlHazard = true;
+            printf("\ndue to BEZ\n");
+        }
+
+    } else if(instAtBR.opcode == 0x05) { // BGTZ
+        if(cpu.registers[instAtBR.rd]>0) {
+            control_hazard_count+=4;
+            isControlHazard = true;
+            printf("\ndue to BGTZ\n");
+        } 
+
+    } else if(instAtBR.opcode == 0x06) { // BLTZ
+        if(cpu.registers[instAtBR.rd]<0) {
+            control_hazard_count+=4;
+            isControlHazard = true;
+            printf("\ndue to BLTZ\n");
+        }
+    }
+
+    // if(isControlHazard) {
+    //     for(int i=0; i<4; i++) {
+    //         pipeline[i] = initInstruction();
+    //     }
+
+    //     return pipeline;
+    // }
+ 
+
+    // data hazards
+    Instruction instAtRR = pipeline[2];
+    int i=0;
+    if(instAtRR.opcode == 0x01) {
+        return pipeline;
+    }
+    if(instAtRR.opcode == 0xC8 || instAtRR.opcode == 0xCC  ){ // ld || instAtRR.opcode == 0xCC
+        for(i=3; i<8; i++){
+            if(
+                (instAtRR.rs1 != -1 && instAtRR.rs1 == pipeline[i].rd)
+                || (instAtRR.rs2 != -1 && instAtRR.rs2 == pipeline[i].rd)  
+                || (instAtRR.rd != -1 && instAtRR.rd == pipeline[i].rd)
+            ) { printf("** %d **", pipeline[i].opcode);
+                if(instAtRR.opcode == 0xC8 && pipeline[i].opcode == 0xCC){ // (pipeline[i].opcode==0xC8 &&)
+                    continue;
+                } else {
+                    printf("D-hazard ");
+                    break; 
+                }   
+            }
+        }
+    } 
+    // else if(instAtRR.opcode == 0xCC ){ // sd || instAtRR.opcode == 0xCC
+    //     for(i=3; i<8; i++){
+    //         if(
+    //             (instAtRR.rd != -1 && (instAtRR.rd == pipeline[i].rs1 || instAtRR.rd == pipeline[i].rs2 || instAtRR.rd == pipeline[i].rd))
+    //         ) {
+    //             printf("D-hazard ");
+    //             break;   
+    //         }
+    //     }
+    // } 
+    // else if(instAtRR.opcode == 0x10){
+    //     for(i=3; i<8; i++){
+    //         // data hazard
+    //         if(
+    //             (instAtRR.rd != -1 && (instAtRR.rd == pipeline[i].rs1 || instAtRR.rd == pipeline[i].rs2))
+    //         ) {
+    //             printf("D-hazard ");
+    //             break;   
+    //         }
+    //     }
+
+    // } 
+    else {
+        for(i=3; i<8; i++){
+            // data hazard
+            if(
+                (instAtRR.rs1 != -1 && (instAtRR.rs1 == pipeline[i].rd))
+                || (instAtRR.rs2 != -1 && (instAtRR.rs2 == pipeline[i].rd))
+                // (instAtRR.rs1 != -1 && (instAtRR.rs1 == pipeline[i].rs1 || instAtRR.rs1 == pipeline[i].rs2 || instAtRR.rs1 == pipeline[i].rd))
+                // || (instAtRR.rs2 != -1 && (instAtRR.rs2 == pipeline[i].rs1 || instAtRR.rs2 == pipeline[i].rs2 || instAtRR.rs2 == pipeline[i].rd))
+                // || (instAtRR.rd != -1 && (instAtRR.rd == pipeline[i].rs1 || instAtRR.rd == pipeline[i].rs2 || instAtRR.rd == pipeline[i].rd))
+            ) {
+                if(pipeline[i].opcode == 0xCC){
+                    continue;
+                } else {
+                    printf("D-hazard ");
+                    break; 
+                }
+                  
+            }
+        }
+    }
+    
+
+    int stall = 0;
+    if(i==8) {
+        // no hazard 
+        stall = 0;
+    } else if(i==7) {
+        // stall 1 cycle
+        stall = 1;
+    } else if(i==6) {
+        // stall 2 cycle
+        stall = 2;
+    }else if(i==5) { 
+        // stall 3 cycle
+        stall = 3;
+    }else if(i==4) {
+        // stall 4 cycle
+        stall = 4;
+    }else if(i==3) {
+        // stall 5 cycle
+        stall = 5;
+    }
+
+    data_hazard_count += stall;
+    printf(" stall :%d, data_hazard_count: %d, control_hazard:%d",
+    stall, data_hazard_count, control_hazard_count);
+
+    int nullIndex = 3;
+    while(stall > 0) {
+        for(int j=7; j>=4; j--) {
+            pipeline[j] = pipeline[j-1];
+            //case 0x04: return "bez";
+            // case 0x05: return "bgtz";
+            // case 0x06: return "bglz";
+            if(j==4){ // Branch statement in BR stage
+                if((pipeline[j].opcode == 0x04 && cpu.registers[pipeline[j].rd] == 0)
+                || (pipeline[j].opcode == 0x05 && cpu.registers[pipeline[j].rd] > 0) 
+                || (pipeline[j].opcode == 0x05 && cpu.registers[pipeline[j].rd] > 0)) {
+                    control_hazard_count+=3;
+                }
+            }
+        }
+        pipeline[nullIndex] = initInstruction();
+        nullIndex+=1;
+        stall-=1;
+    };
+
+    return pipeline;
+
+}
+
+void runPipeline(){
 
     // [' IF:0', ' ID:1', ' RR:2', ' EX:3', ' BR:4', ' MEM1:5', ' MEM2:6', 'WR:7']
     Instruction * pipeline = malloc(8 * sizeof(Instruction));
     int count = 0;
 
-    while(count <= instructionCount){
-        printf("Iteration: %d\n", count);
-        printPipeline(pipeline);
+    for(int i=0; i<8; i++) {
+        pipeline[i] = initInstruction();
+    }
 
+    while(count <= instructionCount){
+        printf("\nIteration: %d\n", count);
+        // printPipeline(pipeline);
+
+        handleHazards(pipeline);
+
+        printPipeline(pipeline);
         for(int i=7; i>0; i--){
             pipeline[i] = pipeline[i-1];
         }
         pipeline[0] = cpu.instructions[count];
+        
 
-        printPipeline(pipeline);
+        // printPipeline(pipeline);
         count+=1;
     }
 
 }
+
 
 int main(int argc, char const *argv[])
 {
@@ -656,6 +872,9 @@ int main(int argc, char const *argv[])
 
     // initilaize instructions array
     cpu.instructions = malloc(1000 * sizeof(Instruction));
+    for(int i=0; i<1000; i++) {
+        cpu.instructions[i] = initInstruction();
+    }
 
     // printf("%d\n", argc);
     // printf("%s\n", argv[0]);
@@ -666,11 +885,11 @@ int main(int argc, char const *argv[])
     readFile(argv[1]);
     // printOpcodes();
 
-	print_registers(cpu.registers);
-	print_statistics(cpu.stats);
-
     writeMemFile(argv[2]);
-    countHazards();
+    runPipeline();
+
+    print_registers(cpu.registers);
+	print_statistics(cpu.stats);
     // writeMemOutFile(argv[1], argv[2]);
 
 	// Step2: read bits from the text area of memory
@@ -707,11 +926,12 @@ void print_statistics(int stats[]) {
     printf("Number of 6Bytes instructions: %d\n", stats[14]);
     printf("Total Number of instructions: %d\n", stats[15]);
 
+    total_cycle_count = stats[15]+data_hazard_count+14;
     printf("\n");
     printf("Stalled cycles due to data hazard: %d \n", data_hazard_count);
     printf("Stalled cycles due to control hazard: %d \n", control_hazard_count);
     printf("Total execution cycles: %d\n", total_cycle_count);
-    printf("IPC: %f\n", (total_instruction_count / (double)total_cycle_count));
+    printf("IPC: %f\n", (stats[15] / (double)total_cycle_count));
 }
 
 
