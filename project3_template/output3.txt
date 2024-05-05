@@ -20,8 +20,8 @@ Number of 5Bytes instructions: 15
 Number of 6Bytes instructions: 4
 Total Number of instructions: 79
 
-Stalled cycles due to data hazard: 0 
-Stalled cycles due to control hazard: 0 
-Total execution cycles: 0
-IPC: -nan
+Stalled cycles due to data hazard: 91 
+Stalled cycles due to control hazard: 16 
+Total execution cycles: 184
+IPC: 0.429348
 

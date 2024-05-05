@@ -420,6 +420,7 @@ int readFile(const char *filePath) {
 
             if(cpu.registers[rx]==0) {
                 fseek(binaryFile, imm_value1, SEEK_SET);
+                control_hazard_count+=4;
                 // long seek_pos = ftell(binaryFile);
                 // seek_pos = ftell(binaryFile);
                 // printf(" BEZ-After seek position:%ld, imm_val: %d, rx: %d, cpu.registers[rx]:%d \t", seek_pos, imm_value1, rx, cpu.registers[rx]);
@@ -450,6 +451,7 @@ int readFile(const char *filePath) {
             if(cpu.registers[rx]>0){
                 // printf("BGTZ-Before seek position:%ld\t", seek_pos);
                 fseek(binaryFile, imm_value1, SEEK_SET);
+                control_hazard_count+=4;
                 // long seek_pos = ftell(binaryFile);
                 // seek_pos = ftell(binaryFile);
                 // printf(" BGTZ-After seek position:%ld\t", seek_pos);
@@ -480,6 +482,7 @@ int readFile(const char *filePath) {
             if(cpu.registers[rx]<0){
                 // printf("BLTZ-Before seek position:%ld\t", seek_pos);
                 fseek(binaryFile, imm_value1, SEEK_SET);
+                control_hazard_count+=4;
                 // long seek_pos = ftell(binaryFile);
                 // seek_pos = ftell(binaryFile);
                 // printf(" BLTZ-After seek position:%ld\t", seek_pos);
@@ -672,28 +675,28 @@ Instruction* handleHazards(Instruction * pipeline){
     Instruction instAtBR = pipeline[4];
     bool isControlHazard = false;
 
-    printf("\nInst at BR: opcode:%d, rx:%d, rs1:%d, rs2:%d, imm1:%d, imm2:%d, control_hazard_count:%d \n", 
-    instAtBR.opcode, instAtBR.rd, instAtBR.rs1, instAtBR.rs2, instAtBR.imm1, instAtBR.imm2, control_hazard_count);
+    // printf("\nInst at BR: opcode:%d, rx:%d, R[rx]:%d, rs1:%d, rs2:%d, imm1:%d, imm2:%d, control_hazard_count:%d \n", 
+    // instAtBR.opcode, instAtBR.rd, cpu.registers[instAtBR.rd], instAtBR.rs1, instAtBR.rs2, instAtBR.imm1, instAtBR.imm2, control_hazard_count);
 
     if(instAtBR.opcode == 0x04) { //BEZ
         if(cpu.registers[instAtBR.rd]==0) {
-            control_hazard_count+=4;
+            // control_hazard_count+=4;
             isControlHazard = true;
-            printf("\ndue to BEZ\n");
+            // printf("\ndue to BEZ\n");
         }
 
     } else if(instAtBR.opcode == 0x05) { // BGTZ
         if(cpu.registers[instAtBR.rd]>0) {
-            control_hazard_count+=4;
+            // control_hazard_count+=4;
             isControlHazard = true;
-            printf("\ndue to BGTZ\n");
+            // printf("\ndue to BGTZ\n");
         } 
 
     } else if(instAtBR.opcode == 0x06) { // BLTZ
         if(cpu.registers[instAtBR.rd]<0) {
-            control_hazard_count+=4;
+            // control_hazard_count+=4;
             isControlHazard = true;
-            printf("\ndue to BLTZ\n");
+            // printf("\ndue to BLTZ\n");
         }
     }
 
@@ -718,11 +721,12 @@ Instruction* handleHazards(Instruction * pipeline){
                 (instAtRR.rs1 != -1 && instAtRR.rs1 == pipeline[i].rd)
                 || (instAtRR.rs2 != -1 && instAtRR.rs2 == pipeline[i].rd)  
                 || (instAtRR.rd != -1 && instAtRR.rd == pipeline[i].rd)
-            ) { printf("** %d **", pipeline[i].opcode);
+            ) { 
+                // printf("** %d **", pipeline[i].opcode);
                 if(instAtRR.opcode == 0xC8 && pipeline[i].opcode == 0xCC){ // (pipeline[i].opcode==0xC8 &&)
                     continue;
                 } else {
-                    printf("D-hazard ");
+                    // printf("D-hazard ");
                     break; 
                 }   
             }
@@ -763,7 +767,7 @@ Instruction* handleHazards(Instruction * pipeline){
                 if(pipeline[i].opcode == 0xCC){
                     continue;
                 } else {
-                    printf("D-hazard ");
+                    // printf("D-hazard ");
                     break; 
                 }
                   
@@ -794,8 +798,8 @@ Instruction* handleHazards(Instruction * pipeline){
     }
 
     data_hazard_count += stall;
-    printf(" stall :%d, data_hazard_count: %d, control_hazard:%d",
-    stall, data_hazard_count, control_hazard_count);
+    // printf(" stall :%d, data_hazard_count: %d, control_hazard:%d",
+    // stall, data_hazard_count, control_hazard_count);
 
     int nullIndex = 3;
     while(stall > 0) {
@@ -832,12 +836,12 @@ void runPipeline(){
     }
 
     while(count <= instructionCount){
-        printf("\nIteration: %d\n", count);
+        // printf("\nIteration: %d\n", count);
         // printPipeline(pipeline);
 
         handleHazards(pipeline);
 
-        printPipeline(pipeline);
+        // printPipeline(pipeline);
         for(int i=7; i>0; i--){
             pipeline[i] = pipeline[i-1];
         }
@@ -845,6 +849,7 @@ void runPipeline(){
         
 
         // printPipeline(pipeline);
+        // print_registers(cpu.registers);
         count+=1;
     }
 
